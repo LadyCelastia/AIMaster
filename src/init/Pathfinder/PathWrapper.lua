@@ -44,6 +44,7 @@ function PathWrapper:Compute()
 	end)
 	self.Path:ComputeAsync(self.Start, self.Finish)
 	self:Update()
+	self.Next = 1
 end
 
 function PathWrapper:Destroy()

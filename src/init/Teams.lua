@@ -21,6 +21,10 @@ Teams.Relations = {
 		["Allies"] = {"Test3"},
 		["Enemies"] = {"Test1", "Test2"},
 	},
+	["Test5"] = {
+		["Allies"] = {},
+		["Enemies"] = {"Test1", "Test2", "Test3", "Test4"},
+	},
 }
 
 Teams.GetRelationStatus = function(Team1, Team2) -- 0 = enemies, 1 = neutral, 2 = friendly

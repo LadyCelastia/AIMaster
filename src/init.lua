@@ -1,5 +1,6 @@
 local collectionService = game:GetService("CollectionService")
 local Pathfinder = require(script:WaitForChild("Pathfinder"))
+local aiLibrary = require(script:WaitForChild("AILibrary"))
 local combatAPIs = script:WaitForChild("CombatAPIs")
 local combatAIs = script:WaitForChild("CombatAIs")
 
@@ -150,6 +151,7 @@ StateMachine.new = function()
 	self.Character = nil
 	self.Path = nil
 	self.Weapon = nil
+	self.CombatAI = nil
 	self.CombatAPI = nil
 	self.Target = nil
 	self.AggroRange = 50
@@ -174,7 +176,17 @@ function StateMachine:Update(doNotCompute)
 end
 
 function StateMachine:Destroy()
-	
+	pcall(function()
+		self.Path:Destroy()
+	end)
+	pcall(function()
+		self.Weapon:Destroy()
+	end)
+	pcall(function()
+		self.CombatAI:Destroy()
+	end)
+	self.Character = nil
+	self.Target = nil
 end
 
 local Module = {}
@@ -194,6 +206,15 @@ end
 Module.MountAI = function(AIType)
 	if loadedCombatAIs[AIType] ~= nil then
 		return loadedCombatAIs[AIType].new()
+	end
+end
+
+Module.buildAI = function(AIName)
+	local newAI = StateMachine.new()
+	for i,v in pairs(aiLibrary) do
+		if i == AIName then
+			newAI["CombatAI"] = (v["CombatAI"] ~= nil and loadedCombatAIs[v["CombatAI"]].new()) or nil
+		end
 	end
 end
 
