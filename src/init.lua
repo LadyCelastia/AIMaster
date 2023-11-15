@@ -214,6 +214,10 @@ Module.buildAI = function(AIName)
 	for i,v in pairs(aiLibrary) do
 		if i == AIName then
 			newAI["CombatAI"] = (v["CombatAI"] ~= nil and loadedCombatAIs[v["CombatAI"]].new()) or nil
+			newAI["CombatAPI"] = (v["CombatAPI"] ~= nil and loadedCombatAPIs[v["CombatAPI"]].new()) or nil
+			newAI["Team"] = v["Team"] or "Neutral"
+			newAI["Difficulty"] = v["Difficulty"] or 50
+			newAI["AggroRange"] = v["AggroRange"] or 50
 		end
 	end
 end
