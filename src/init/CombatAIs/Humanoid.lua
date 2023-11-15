@@ -1,3 +1,7 @@
+--[[
+	LadyCelestia 3/11/2023
+	Main AI for humanoid characters
+--]]
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Teams = require(script.Parent.Parent:WaitForChild("Teams"))

@@ -1,5 +1,5 @@
 --[[
-	LadyCelastia 27/10/2023
+	LadyCelestia 27/10/2023
 	API for handling humanoid combat
 --]]
 

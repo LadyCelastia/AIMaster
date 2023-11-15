@@ -1,3 +1,8 @@
+--[[
+    LadyCelestia 15/11/2023
+    AI templates
+--]]
+
 return {
     ["TestAI"] = {
         ["CombatAI"] = "Humanoid",

@@ -1,5 +1,5 @@
 --[[
-	LadyCelastia 27/10/2023
+	LadyCelestia 27/10/2023
 	Fork of roblox's animate script
 --]]
 
