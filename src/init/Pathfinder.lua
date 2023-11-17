@@ -9,11 +9,11 @@ local PathWrapper = require(script:WaitForChild("PathWrapper"))
 
 local Pathfinder = {}
 
-Pathfinder.AttachChaser = function(Target, Path)
+Pathfinder.AttachChaser = function(Target, Root, Path)
 	if Path.Chaser ~= nil then
 		Path.Chaser:Destroy()
 	end
-	Path.Chaser = Chaser.new(Target, Path)
+	Path.Chaser = Chaser.new(Target, Root, Path)
 end
 
 Pathfinder.AttachWalker = function(Humanoid, Path)
@@ -24,34 +24,34 @@ Pathfinder.AttachWalker = function(Humanoid, Path)
 end
 
 Pathfinder.PartToPoint = function(Part: BasePart, Point: Vector3, Paras: {any}?)
-	return PathWrapper.new(Part.Position, Point, Paras)
+	return PathWrapper.new(Part.Position, Point, Paras or {WaypointSpacing = 10})
 end
 
 Pathfinder.PointToPoint = function(Start: Vector3, Finish: Vector3, Paras: {any}?)
-	return PathWrapper.new(Start, Finish, Paras)
+	return PathWrapper.new(Start, Finish, Paras or {WaypointSpacing = 10})
 end
 
 Pathfinder.PartToPart = function(Start: BasePart, Finish: BasePart, Paras: {any}?)
-	return PathWrapper.new(Start.Position, Finish.Position, Paras)
+	return PathWrapper.new(Start.Position, Finish.Position, Paras or {WaypointSpacing = 10})
 end
 
 Pathfinder.PointToPart = function(Start: Vector3, Finish: BasePart, Paras: {any}?)
-	return PathWrapper.new(Start, Finish.Position, Paras)
+	return PathWrapper.new(Start, Finish.Position, Paras or {WaypointSpacing = 10})
 end
 
 Pathfinder.CharacterToPoint = function(Char: Model, Point: Vector3, Paras: {any}?)
 	local root = Char:FindFirstChild("HumanoidRootPart")
 	if root ~= nil then
-		return PathWrapper.new(root.Position, Point, Paras)
+		return PathWrapper.new(root.Position, Point, Paras or {WaypointSpacing = 10})
 	end
 end
 
 Pathfinder.CharacterToPart = function(Char: Model, Part: BasePart, Chase: boolean, Paras: {any}?)
 	local root = Char:FindFirstChild("HumanoidRootPart")
 	if root ~= nil then
-		local path = PathWrapper.new(root.Position, Part.Position, Paras)
+		local path = PathWrapper.new(root.Position, Part.Position, Paras or {WaypointSpacing = 10})
 		if Chase == true then
-			Pathfinder.AttachChaser(Part, path)
+			Pathfinder.AttachChaser(Part, root, path)
 		end
 		return path
 	end
@@ -61,9 +61,9 @@ Pathfinder.CharacterToCharacter = function(Char: Model, Target: Model, Chase: bo
 	local root = Char:FindFirstChild("HumanoidRootPart")
 	local targetRoot = Target:FindFirstChild("HumanoidRootPart")
 	if root ~= nil and targetRoot ~= nil then
-		local path = PathWrapper.new(root.Position, targetRoot.Position, Paras)
+		local path = PathWrapper.new(root.Position, targetRoot.Position, Paras or {WaypointSpacing = 10})
 		if Chase == true then
-			Pathfinder.AttachChaser(targetRoot, path)
+			Pathfinder.AttachChaser(targetRoot, root, path)
 		end
 		return path
 	end

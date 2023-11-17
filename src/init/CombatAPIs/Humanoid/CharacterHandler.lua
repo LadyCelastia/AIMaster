@@ -72,6 +72,27 @@ Humanoid:GetPropertyChangedSignal("Health"):Connect(function()
 	end
 end)
 
+Character.ChildAdded:Connect(function(object)
+	if object.Name == "Stun" then
+		Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+	end
+end)
+
+Character.ChildRemoved:Connect(function(object)
+	if object.Name == "Stun" then
+		local hasStun = false
+		for _,v in ipairs(Character:GetChildren()) do
+			if v.Name == "Stun" then
+				hasStun = true
+				break
+			end
+		end
+		if hasStun == false then
+			Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+		end
+	end
+end)
+
 local RunService = game:GetService("RunService")
 local frame = 0
 local delta = 0
@@ -79,14 +100,14 @@ RunService.Stepped:Connect(function(_, deltaTime)
 	frame += 1
 	delta += deltaTime
 	if frame >= 5 then
-		if CanRegenStamina == true and Sprinting.Value == false then
+		if CanRegenStamina == true then
 			if (Stamina.Value + (StaminaRegen.Value * delta)) <= MaxStamina.Value then
 				Stamina.Value += (StaminaRegen.Value * delta)
 			elseif Stamina.Value < MaxStamina.Value then
 				Stamina.Value = MaxStamina.Value
 			end
 		end
-		if CanRegenMana == true and Sprinting.Value == false then
+		if CanRegenMana == true then
 			if (Mana.Value + (ManaRegen.Value * delta)) <= MaxMana.Value then
 				Mana.Value += (ManaRegen.Value * delta)
 			elseif Mana.Value < MaxMana.Value then

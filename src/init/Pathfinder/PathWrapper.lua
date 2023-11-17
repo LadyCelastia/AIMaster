@@ -14,7 +14,7 @@ PathWrapper.__index = PathWrapper
 PathWrapper.new = function(start: Vector3, finish: Vector3, paras: {any}?)
 	local self = setmetatable({}, PathWrapper)
 	self.Path = PathfindingService:CreatePath(paras)
-	self.Next = 1
+	self.Next = 2
 	self.Start = start
 	self.Finish = finish
 	self.Waypoints = {}
@@ -44,7 +44,7 @@ function PathWrapper:Compute()
 	end)
 	self.Path:ComputeAsync(self.Start, self.Finish)
 	self:Update()
-	self.Next = 1
+	self.Next = 2
 end
 
 function PathWrapper:Destroy()
@@ -59,3 +59,5 @@ function PathWrapper:Destroy()
 	end
 	self = {}
 end
+
+return PathWrapper

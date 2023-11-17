@@ -8,13 +8,13 @@ local RunService = game:GetService("RunService")
 local Chaser = {}
 Chaser.__index = Chaser
 
-Chaser.new = function(Target: BasePart, PathWrapper)
+Chaser.new = function(Target: BasePart, Start: BasePart, PathWrapper)
 	local self = setmetatable({}, Chaser)
-	
 	self.PathWrapper = PathWrapper
 	self.Target = Target
-	self.AutoUpdate = false
-	self.AutoUpdateFrames = 10
+	self.Start = Start
+	self.AutoUpdate = true
+	self.AutoUpdateFrames = 15
 	self.CurrentFrame = 0
 	self.FrameFunction = function()
 		self.CurrentFrame += 1
@@ -30,14 +30,14 @@ Chaser.new = function(Target: BasePart, PathWrapper)
 	else
 		self.Connection = RunService.RenderStepped:Connect(self.FrameFunction)
 	end
-	
 	PathWrapper.Chaser = self
 	return self
 end
 
 function Chaser:Update()
-	if typeof(self.Target) == "Instance" and self.Target:IsA("BasePart") then
+	if typeof(self.Target) == "Instance" and self.Target:IsA("BasePart") and self.PathWrapper.Finish ~= self.Target.Position then
 		self.PathWrapper.Finish = self.Target.Position
+		self.PathWrapper.Start = self.Start.Position
 		self.PathWrapper:Compute()
 	end
 end

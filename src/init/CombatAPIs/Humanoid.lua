@@ -19,11 +19,11 @@ HumanoidCombat.__index = HumanoidCombat
 
 HumanoidCombat.new = function()
 	local self = setmetatable({}, HumanoidCombat)
-	
+
 	self.IsHumanoid = true
 	self.Weapon = nil
 	self.Character = nil
-	
+
 	return self
 end
 
@@ -98,7 +98,7 @@ function HumanoidCombat:StartSprint()
 		local humanoid = self.Character:FindFirstChildOfClass("Humanoid")
 		if Sprinting.Value == false then
 			Sprinting.Value = true
-			humanoid.WalkSpeed += 8
+			humanoid.WalkSpeed += 10
 		end
 	end
 end
@@ -109,7 +109,7 @@ function HumanoidCombat:StopSprint()
 		local humanoid = self.Character:FindFirstChildOfClass("Humanoid")
 		if Sprinting.Value == true then
 			Sprinting.Value = false
-			humanoid.WalkSpeed -= 8
+			humanoid.WalkSpeed -= 10
 		end
 	end
 end

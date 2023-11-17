@@ -36,7 +36,7 @@ end
 local function loadCharacter(character : Model, noAnim : boolean)
 	local humanoid : Humanoid = character:WaitForChild("Humanoid")
 	local animator = Instance.new("Animator", humanoid)
-	
+
 	collectionService:AddTag(character, "NPCCharacter")
 
 	local cn; cn = humanoid.Running:Connect(function(speed)
@@ -150,7 +150,7 @@ StateMachine.__index = StateMachine
 
 StateMachine.new = function()
 	local self = setmetatable({}, StateMachine)
-	
+
 	self.State = "Idle"
 	self.Character = nil
 	self.Path = nil
@@ -161,9 +161,9 @@ StateMachine.new = function()
 	self.AggroRange = 50
 	self.Team = nil
 	self.Difficulty = 50 -- 1 to 100, determins how proficient the AI is at combat (100 is max)
-	
+
 	table.insert(existingStateMachines, self)
-	
+
 	return self
 end
 
@@ -201,29 +201,30 @@ Module.newAI = function()
 	return StateMachine.new()
 end
 
-Module.MountCombat = function(CombatType)	
+Module.MountCombat = function(CombatType, Char)	
 	if loadedCombatAPIs[CombatType] ~= nil then
-		return loadedCombatAPIs[CombatType].new()
+		return loadedCombatAPIs[CombatType].new(Char)
 	end
 end
 
-Module.MountAI = function(AIType)
+Module.MountAI = function(AIType, Char)
 	if loadedCombatAIs[AIType] ~= nil then
-		return loadedCombatAIs[AIType].new()
+		return loadedCombatAIs[AIType].new(Char)
 	end
 end
 
-Module.buildAI = function(AIName)
+Module.buildAI = function(AIName, Char)
 	local newAI = StateMachine.new()
 	for i,v in pairs(aiLibrary) do
 		if i == AIName then
-			newAI["CombatAI"] = (v["CombatAI"] ~= nil and loadedCombatAIs[v["CombatAI"]].new()) or nil
-			newAI["CombatAPI"] = (v["CombatAPI"] ~= nil and loadedCombatAPIs[v["CombatAPI"]].new()) or nil
+			newAI["CombatAI"] = (v["CombatAI"] ~= nil and loadedCombatAIs[v["CombatAI"]].new(Char)) or nil
+			newAI["CombatAPI"] = (v["CombatAPI"] ~= nil and loadedCombatAPIs[v["CombatAPI"]].new(Char)) or nil
 			newAI["Team"] = v["Team"] or "Neutral"
 			newAI["Difficulty"] = v["Difficulty"] or 50
 			newAI["AggroRange"] = v["AggroRange"] or 50
 		end
 	end
+	return newAI
 end
 
 return Module
