@@ -4,11 +4,28 @@
 --]]
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local CollectionService = game:GetService("CollectionService")
 local Teams = require(script.Parent.Parent:WaitForChild("Teams"))
 local Pathfinder = require(script.Parent.Parent:WaitForChild("Pathfinder"))
+local GetPlayerCharacters = require(script.Parent.Parent:WaitForChild("PlayerCharacterList"))
+
+local function findClosestTarget()
+	
+end
 
 local HumanoidAI = {}
 HumanoidAI.__index = HumanoidAI
+
+--[[
+	States:
+	Idle - Search for a target
+	Chasing - Chase a found target
+	Dash - Aggressive pursue with a line of sight
+	CloseCombat - Close enough to target to enter combat
+
+	Aggression: Attacking the AI increases your aggression toward the AI.
+	When your aggression exceeds that of the current target's aggression, the AI targets you instead.
+--]]
 
 HumanoidAI.new = function(Character: Model)
 	local self = setmetatable({}, HumanoidAI)
@@ -18,43 +35,36 @@ HumanoidAI.new = function(Character: Model)
 	self.Frames = 60 -- how many frames per update
 	self.CurrentFrame = 0
 	self.Aggression = {}
-	self.AggressionConnections = {}
 	self.CurrentAggression = 20
-	self.PreviousTarget = nil
 	self.CurrentTween = nil
+	self.PreviousTarget = nil
 	self.ChildAddedConnection = Character.ChildAdded:Connect(function(object)
 		if object:IsA("ObjectValue") then
-			self.Aggression[object.Value] = {}
-			self.Aggression[object.Value][tick()] = object.Name
-			self.AggressionConnections[object] = object:GetPropertyChangedSignal("Name"):Connect(function()
-				self.Aggression[object.Value][tick()] = object.Name
-				for timestamp, aggression in pairs(self.Aggression[object.Value]) do
-					local totalAggression = 0
-					if tick() - timestamp < 5 then
-						totalAggression += aggression
-						if totalAggression > self.CurrentAggression then
-							--Retarget
-							if self.StateMachine.Path ~= nil then
-								self.StateMachine.Path:Destroy()
-							end
-							self.StateMachine.State = "Chasing"
-							self.CurrentAggression = totalAggression
-							self.StateMachine.Target = object.Value
-							self.StateMachine.Path = Pathfinder.CharacterToCharacter(self.StateMachine.Character, self.StateMachine.Target, true)
-							Pathfinder.AttachWalker(self.StateMachine.Character.Humanoid, self.StateMachine.Path)
-							self.StateMachine.Character:FindFirstChildOfClass("Humanoid"):MoveTo(self.StateMachine.Path.Waypoints[self.StateMachine.Path.Next].Position)
-						end
-					else
-						self.Aggression[object.Value][timestamp] = nil
-					end
-				end
+			local timestamp = tick()
+			self.Aggression[object.Value][timestamp] = object.Name
+			task.delay(5, function()
+				self.Aggression[object.Value][timestamp] = nil
 			end)
+			local totalAggression = 0
+			for oldTimestamp, aggression in pairs(self.Aggression[object.Value]) do
+				if (timestamp - oldTimestamp) < 5 then
+					totalAggression += aggression
+					if totalAggression > self.CurrentAggression then
+						self.CurrentAggression = totalAggression
+						self.StateMachine.Target = object.Value
+						self.StateMachine.State = "Chasing"
+						pcall(function()
+							self.StateMachine.Path:Destroy()
+						end)
+					end
+				else
+					self.Aggression[object.Value][oldTimestamp] = nil
+				end
+				
+			end
 		end
 	end)
 	self.ChildRemovedConnection = Character.ChildRemoved:Connect(function(object)
-		if self.AggressionConnections[object] ~= nil then
-			self.AggressionConnections[object]:Disconnect()
-		end
 		if object:IsA("ObjectValue") and self.Aggression[object.Value] ~= nil then
 			self.Aggression[object.Value] = nil
 		end
