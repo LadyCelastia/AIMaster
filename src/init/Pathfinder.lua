@@ -10,17 +10,23 @@ local PathWrapper = require(script:WaitForChild("PathWrapper"))
 local Pathfinder = {}
 
 Pathfinder.AttachChaser = function(Target, Root, Path)
-	if Path.Chaser ~= nil then
-		Path.Chaser:Destroy()
+	if Path.Destroyed ~= true then
+		if Path.Chaser ~= nil then
+			Path.Chaser:Destroy()
+		end
+		Path.Chaser = Chaser.new(Target, Root, Path)
 	end
-	Path.Chaser = Chaser.new(Target, Root, Path)
+	return Path
 end
 
 Pathfinder.AttachWalker = function(Humanoid, Path)
-	if Path.Walker ~= nil then
-		Path.Walker:Destroy()
+	if Path.Destroyed ~= true then
+		if Path.Walker ~= nil then
+			Path.Walker:Destroy()
+		end
+		Path.Walker = Walker.new(Humanoid, Path)
 	end
-	Path.Walker = Walker.new(Humanoid, Path)
+	return Path
 end
 
 Pathfinder.PartToPoint = function(Part: BasePart, Point: Vector3, Paras: {any}?)
@@ -51,7 +57,7 @@ Pathfinder.CharacterToPart = function(Char: Model, Part: BasePart, Chase: boolea
 	if root ~= nil then
 		local path = PathWrapper.new(root.Position, Part.Position, Paras or {WaypointSpacing = 10})
 		if Chase == true then
-			Pathfinder.AttachChaser(Part, root, path)
+			path = Pathfinder.AttachChaser(Part, root, path)
 		end
 		return path
 	end
@@ -63,7 +69,7 @@ Pathfinder.CharacterToCharacter = function(Char: Model, Target: Model, Chase: bo
 	if root ~= nil and targetRoot ~= nil then
 		local path = PathWrapper.new(root.Position, targetRoot.Position, Paras or {WaypointSpacing = 10})
 		if Chase == true then
-			Pathfinder.AttachChaser(targetRoot, root, path)
+			path = Pathfinder.AttachChaser(targetRoot, root, path)
 		end
 		return path
 	end

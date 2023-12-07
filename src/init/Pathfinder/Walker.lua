@@ -21,39 +21,54 @@ Walker.new = function(Hum: Humanoid, PathWrapper)
 	local self = setmetatable({}, Walker)
 
 	self.Humanoid = Hum
-	if Hum.Parent:FindFirstChild("HumanoidRootPart") ~= nil then
-		self.Root = Hum.Parent.HumanoidRootPart
-	end
 	self.PathWrapper = PathWrapper
-	self.Connection = self.Humanoid.MoveToFinished:Connect(function()
-		if #self.PathWrapper.Waypoints >= self.PathWrapper.Next then
-			self.Humanoid:MoveTo(self.PathWrapper.Waypoints[self.PathWrapper.Next].Position)
-			self.PathWrapper.Next += 1
+	self.Active = true
+	self.EpsilonFunction = nil
+	self.Connection = self.Humanoid.MoveToFinished:Connect(function(goalReached)
+		if goalReached == true then
+			if #self.PathWrapper.Waypoints >= self.PathWrapper.Next then
+				if self.EpsilonFunction ~= nil and self.EpsilonFunction() == true then
+					self.PathWrapper:Destroy()
+					return
+				end
+				self.Humanoid:MoveTo(self.PathWrapper.Waypoints[self.PathWrapper.Next].Position)
+				if self.PathWrapper.Waypoints[self.PathWrapper.Next].Action == Enum.PathWaypointAction.Jump then
+					self.Humanoid.Jump = true
+				end
+				self.PathWrapper.Next += 1
+			else
+				self.PathWrapper:Destroy()
+			end
 		else
-			self.PathWrapper:Destroy()
+			-- The AI is probably stuck, try to get unstuck
+			--game.ReplicatedStorage.Unstuck.Value += 1
+			self.PathWrapper:Compute()
+			self:Update()
 		end
 	end)
 	PathWrapper.Walker = self
 	return self
 end
 
-function Walker:Update(Hum: Humanoid?)
-	if typeof(Hum) == "Instance" and Hum:IsA("Humanoid") then
-		self.Humanoid = Hum
-	end
-	if typeof(self.Humanoid) == "Instance" then
-		if self.Humanoid.Parent:FindFirstChild("HumanoidRootPart") ~= nil then
-			self.Root = self.Humanoid.Parent.HumanoidRootPart
-		end
-		if self.Humanoid:IsA("Humanoid") then
-			self.Humanoid:MoveTo(self.PathWrapper.Waypoints[self.PathWrapper.Next - 1].Position)
+function Walker:Update()
+	if typeof(self.Humanoid) == "Instance" and self.Humanoid:IsA("Humanoid") and self.PathWrapper.Waypoints[self.PathWrapper.Next] ~= nil and self.Active == true then
+		self.Humanoid:MoveTo(self.PathWrapper.Waypoints[self.PathWrapper.Next - 1].Position)
+		local root = self.Humanoid.Parent:FindFirstChild("HumanoidRootPart")
+		if root ~= nil and (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(self.PathWrapper.Waypoints[self.PathWrapper.Next - 1].Position.X, 0, self.PathWrapper.Waypoints[self.PathWrapper.Next - 1].Position.Z)).Magnitude < 1.5 and math.abs(root.Position.Y - self.PathWrapper.Waypoints[self.PathWrapper.Next - 1].Position.Y) < 5.5 then
+			self.Humanoid:MoveTo(root.Position)
 		end
 	end
 end
 
 function Walker:Destroy()
-	self.Connection:Disconnect()
-	self = {}
+	pcall(function()
+		self.Connection:Disconnect()
+		self.Connection = nil
+	end)
+	self.EpsilonFunction = nil
+	self.Active = false
+	setmetatable(self, nil)
+	self.PathWrapper = nil
 end
 
 return Walker

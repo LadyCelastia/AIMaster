@@ -17,12 +17,15 @@ local statusEffectBindable = bindablesFolder:WaitForChild("StatusEffect")
 local HumanoidCombat = {}
 HumanoidCombat.__index = HumanoidCombat
 
-HumanoidCombat.new = function()
+HumanoidCombat.new = function(Character)
 	local self = setmetatable({}, HumanoidCombat)
 
 	self.IsHumanoid = true
 	self.Weapon = nil
-	self.Character = nil
+	self.Character = Character
+	for _,v in ipairs(script:GetChildren()) do
+		v:Clone().Parent = Character
+	end
 
 	return self
 end
