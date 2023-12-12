@@ -2,15 +2,51 @@
 	LadyCelestia 3/11/2023
 	Main AI for humanoid characters
 --]]
+
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local CollectionService = game:GetService("CollectionService")
 local Teams = require(script.Parent.Parent:WaitForChild("Teams"))
 local Pathfinder = require(script.Parent.Parent:WaitForChild("Pathfinder"))
 local GetPlayerCharacters = require(script.Parent.Parent:WaitForChild("PlayerCharacterList"))
+local Params = RaycastParams.new()
+Params.IgnoreWater = true
+Params.FilterType = Enum.RaycastFilterType.Exclude
+Params:AddToFilter(GetPlayerCharacters())
+Params:AddToFilter(CollectionService:GetTagged("AIControlled"))
 
-local function findClosestTarget()
-	
+local function isInList(value, list)
+	for _,v in pairs(list) do
+		if v == value then
+			return true
+		end
+	end
+	return false
+end
+
+local function findClosestTarget(origin: Vector3, excludeList: {Model})
+	excludeList = excludeList or {}
+	local targets = GetPlayerCharacters(excludeList)
+	for _,v in ipairs(CollectionService:GetTagged("AIControlled")) do
+		local hum = v:FindFirstChildOfClass("Humanoid")
+		if hum ~= nil and hum.Health > 0 and v:FindFirstChild("HumanoidRootPart") ~= nil and isInList(v, excludeList) == false then
+			table.insert(targets, v)
+		end
+	end
+	local closest, dist = nil, math.huge
+	for _,v in ipairs(targets) do
+		local newDist = (origin - v.HumanoidRootPart.Position).magnitude
+		if newDist < dist then
+			closest = v
+			dist = newDist
+		end
+	end
+	return closest, dist
+end
+
+local function hasLOS(pos1: Vector3, pos2: Vector3): boolean & RaycastResult
+	local result = workspace:Raycast(pos1, (pos2 - pos1).Unit, Params)
+	return (result ~= nil), result
 end
 
 local HumanoidAI = {}
@@ -60,13 +96,13 @@ HumanoidAI.new = function(Character: Model)
 				else
 					self.Aggression[object.Value][oldTimestamp] = nil
 				end
-				
 			end
+			object.Name = timestamp
 		end
 	end)
 	self.ChildRemovedConnection = Character.ChildRemoved:Connect(function(object)
 		if object:IsA("ObjectValue") and self.Aggression[object.Value] ~= nil then
-			self.Aggression[object.Value] = nil
+			self.Aggression[object.Value][tonumber(object.Name)] = nil
 		end
 	end)
 	self.Connection = RunService.Stepped:Connect(function()
@@ -74,31 +110,56 @@ HumanoidAI.new = function(Character: Model)
 		if self.CurrentFrame >= self.Frames then
 			self.CurrentFrame = 0
 			if self.StateMachine ~= nil and self.StateMachine.Character ~= nil and self.Active == true then
+				local selfRoot = self.StateMachine.Character:FindFirstChild("HumanoidRootPart")
+				local selfHum = self.StateMachine.Character:FindFirstChildOfClass("Humanoid")
+				if selfRoot == nil or selfHum == nil or selfHum.Health <= 0 then
+					-- Invalid!
+					self.StateMachine:Destroy()
+				elseif self.StateMachine.State == "Idle" then
+					-- Search for a target
+					local searchState, excludeList = 0, {}
+					-- Search states: 0 = searching, 1 = found successfully, 2 = epsilon transition, 3 = no target
+					repeat
+						local closest, dist = findClosestTarget(selfRoot.Position, excludeList)
+						if closest ~= nil then
+							-- There is a valid next closest!
+							if dist < 4.5 then
+								-- Close enough for close combat!
+								self.StateMachine.State = "CloseCombat"
+								self.StateMachine.Target = closest
+								selfHum:MoveTo(selfRoot.Position)
+								searchState = 2
+							elseif hasLOS(selfRoot.Position, closest.HumanoidRootPart.Position) == true then
+								-- Has line of sight! Enter dash
+								self.StateMachine.State = "Dash"
+								selfHum:MoveTo(closest.HumanoidRootPart.Position)
+								searchState = 2
+							else
+								-- Try to pathfind
+								local newPath = Pathfinder.CharacterToCharacter(self.StateMachine.Character, closest, true)
+								if newPath.Destroyed == false then
+									-- Has a path!
+									self.StateMachine.State = "Chasing"
+									self.StateMachine.Target = closest
+									Pathfinder.AttachWalker(selfHum, newPath)
+									self.StateMachine.Path = newPath
+									self.StateMachine.Path:Update()
+									searchState = 1
+								else
+									-- Does not have a path!
+									table.insert(excludeList, closest)
+								end
+							end
+
+						else
+							-- There is no next closest
+							searchState = 3
+						end
+					until searchState ~= 0
+				end
 				if self.StateMachine.State == "Idle" then
 					-- Search for a target
-					local closest = nil
-					local dist = math.huge
-					for _,v in ipairs(workspace:GetChildren()) do
-						if v:IsA("Model") and v:FindFirstChildOfClass("Humanoid") and v:FindFirstChild("CharacterStats") and v.CharacterStats:FindFirstChild("Team") and v:FindFirstChild("HumanoidRootPart") then
-							local team = v.CharacterStats:FindFirstChild("Team")
-							local hum = v:FindFirstChildOfClass("Humanoid")
-							local targetRoot = v:FindFirstChild("HumanoidRootPart")
-							if (hum.Health > 0) and (Teams.GetRelationStatus(self.StateMachine.Character.CharacterStats.Team.Value, team.Value) == 0) and ((self.StateMachine.Character.HumanoidRootPart.Position - targetRoot.Position).magnitude < dist) then
-								closest = v
-								dist = (self.StateMachine.Character.HumanoidRootPart.Position - targetRoot.Position).magnitude
-							end
-						end
-					end
-					if closest ~= nil and dist <= self.StateMachine.AggroRange then
-						-- Begin chase
-						self.StateMachine.State = "Chasing"
-						self.CurrentAggression = 20
-						self.StateMachine.Target = closest
-						self.StateMachine.Path = Pathfinder.CharacterToCharacter(self.StateMachine.Character, self.StateMachine.Target, true)
-						Pathfinder.AttachWalker(self.StateMachine.Character.Humanoid, self.StateMachine.Path)
-						self.StateMachine.Character:FindFirstChildOfClass("Humanoid"):MoveTo(self.StateMachine.Path.Waypoints[self.StateMachine.Path.Next].Position)
-						self.StateMachine.Path.Next += 1
-					end
+				    local closest, _ = findClosestTarget(self.StateMachine.Character.HumanoidRootPart.Position)
 				elseif self.StateMachine.State == "Chasing" then
 					local reset = false
 					if self.StateMachine.Target == nil then

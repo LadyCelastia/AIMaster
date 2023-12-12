@@ -2,6 +2,7 @@
 	LadyCelestia 20/10/2023
 	All-in-one module for AIs
 --]]
+
 local collectionService = game:GetService("CollectionService")
 local Pathfinder = require(script:WaitForChild("Pathfinder"))
 local aiLibrary = require(script:WaitForChild("AILibrary"))

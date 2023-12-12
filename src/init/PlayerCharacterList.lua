@@ -6,6 +6,15 @@
 local players = game:GetService("Players")
 local list = {}
 
+local function isInList(value, list)
+	for _,v in pairs(list) do
+		if v == value then
+			return true
+		end
+	end
+	return false
+end
+
 for _,v in ipairs(players:GetPlayers()) do
     if v.Character ~= nil then
         table.insert(list, v.Character)
@@ -47,6 +56,22 @@ players.PlayerAdded:Connect(function(player)
     end)
 end)
 
-return function()
-    return list
+return function(excludeList: {Model})
+    excludeList = excludeList or {}
+    local clone = table.clone(list)
+    local cullList = {}
+    for i,v in ipairs(clone) do
+        if isInList(v, excludeList) == true then
+            table.insert(cullList, i)
+        end
+    end
+    for i,v in ipairs(cullList) do
+        table.remove(clone, v)
+        for i2,v2 in ipairs(cullList) do
+            if i2 > i and v2 > v then
+                cullList[i2] = v2 - 1
+            end
+        end
+    end
+    return clone
 end
