@@ -153,7 +153,7 @@ HumanoidAI.new = function(Character: Model)
 											self.Frames = 6
 											self.CurrentFrame = 0
 											selfHum:MoveTo(targetRoot.Position)
-											return true
+											return true -- continue here
 										end
 										return false
 									end
