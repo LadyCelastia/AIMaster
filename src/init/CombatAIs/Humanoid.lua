@@ -45,6 +45,8 @@ local function findClosestTarget(origin: Vector3, excludeList: {Model})
 end
 
 local function hasLOS(pos1: Vector3, pos2: Vector3): boolean & RaycastResult
+	Params.FilterDescendantsInstances = CollectionService:GetTagged("AIControlled")
+	Params:AddToFilter(GetPlayerCharacters())
 	local result = workspace:Raycast(pos1, (pos2 - pos1).Unit, Params)
 	return (result ~= nil), result
 end
@@ -69,6 +71,7 @@ HumanoidAI.new = function(Character: Model)
 	self.StateMachine = nil
 	self.Active = false
 	self.Frames = 60 -- how many frames per update
+	self.PersistentFrames = self.Frames
 	self.CurrentFrame = 0
 	self.Aggression = {}
 	self.CurrentAggression = 20
@@ -112,8 +115,8 @@ HumanoidAI.new = function(Character: Model)
 			if self.StateMachine ~= nil and self.StateMachine.Character ~= nil and self.Active == true then
 				local selfRoot = self.StateMachine.Character:FindFirstChild("HumanoidRootPart")
 				local selfHum = self.StateMachine.Character:FindFirstChildOfClass("Humanoid")
-				if selfRoot == nil or selfHum == nil or selfHum.Health <= 0 then
-					-- Invalid!
+				if selfRoot == nil or selfHum == nil or selfHum.Health <= 0 or self.StateMachine.Character.Parent == nil then
+					-- Invalid character! Destroy right now!
 					self.StateMachine:Destroy()
 				elseif self.StateMachine.State == "Idle" then
 					-- Search for a target
@@ -123,6 +126,7 @@ HumanoidAI.new = function(Character: Model)
 						local closest, dist = findClosestTarget(selfRoot.Position, excludeList)
 						if closest ~= nil then
 							-- There is a valid next closest!
+							local targetRoot = closest:FindFirstChild("HumanoidRootPart")
 							if dist < 4.5 then
 								-- Close enough for close combat!
 								self.StateMachine.State = "CloseCombat"
@@ -139,10 +143,20 @@ HumanoidAI.new = function(Character: Model)
 								local newPath = Pathfinder.CharacterToCharacter(self.StateMachine.Character, closest, true)
 								if newPath.Destroyed == false then
 									-- Has a path!
+									self.StateMachine.Path = newPath
 									self.StateMachine.State = "Chasing"
 									self.StateMachine.Target = closest
 									Pathfinder.AttachWalker(selfHum, newPath)
-									self.StateMachine.Path = newPath
+									newPath.Walker.EpsilonFunction = function()
+										if hasLOS(selfRoot, targetRoot) == true and math.abs(selfRoot.Position.Y - targetRoot.Position.Y) < 5 then
+											self.StateMachine.State = "Dash"
+											self.Frames = 6
+											self.CurrentFrame = 0
+											selfHum:MoveTo(targetRoot.Position)
+											return true
+										end
+										return false
+									end
 									self.StateMachine.Path:Update()
 									searchState = 1
 								else
@@ -156,7 +170,16 @@ HumanoidAI.new = function(Character: Model)
 							searchState = 3
 						end
 					until searchState ~= 0
+					if searchState == 2 then
+						selfHum:MoveTo(selfRoot.Position)
+					end
+				
+				elseif self.StateMachine.State == "Chasing" then
+					
+
 				end
+
+
 				if self.StateMachine.State == "Idle" then
 					-- Search for a target
 				    local closest, _ = findClosestTarget(self.StateMachine.Character.HumanoidRootPart.Position)

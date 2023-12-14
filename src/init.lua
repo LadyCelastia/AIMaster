@@ -36,9 +36,10 @@ end
 
 local function loadCharacter(character : Model, noAnim : boolean)
 	local humanoid : Humanoid = character:WaitForChild("Humanoid")
-	local animator = Instance.new("Animator", humanoid)
+	local animator = Instance.new("Animator")
+	animator.Parent = humanoid
 
-	collectionService:AddTag(character, "NPCCharacter")
+	collectionService:AddTag(character, "AIControlled")
 
 	local cn; cn = humanoid.Running:Connect(function(speed)
 		if speed > 0 then
@@ -61,11 +62,12 @@ local function loadCharacter(character : Model, noAnim : boolean)
 	RealSpeed.Value = humanoid.WalkSpeed
 	RealSpeed.Parent = humanoid
 
-	local Root : BasePart = character:WaitForChild("HumanoidRootPart")
+	--local Root : BasePart = character:WaitForChild("HumanoidRootPart")
 
 	for _,v in ipairs(character:GetDescendants()) do
 		if v:IsA("Motor6D") and BlacklistCheck(v.Name) == true then
-			local BallSocketConstraint = Instance.new("BallSocketConstraint", v.Parent)
+			local BallSocketConstraint = Instance.new("BallSocketConstraint")
+			BallSocketConstraint.Parent = v.Parent
 			BallSocketConstraint.Name = "RagdollConstraint"
 			local Attachment0, Attachment1 = Instance.new("Attachment"), Instance.new("Attachment")
 			Attachment0.Parent, Attachment1.Parent = v.Part0, v.Part1
