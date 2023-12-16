@@ -7,6 +7,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local CollectionService = game:GetService("CollectionService")
 local Teams = require(script.Parent.Parent:WaitForChild("Teams"))
+local Players = game:GetService("Players")
 local Pathfinder = require(script.Parent.Parent:WaitForChild("Pathfinder"))
 local GetPlayerCharacters = require(script.Parent.Parent:WaitForChild("PlayerCharacterList"))
 local Params = RaycastParams.new()
@@ -14,6 +15,8 @@ Params.IgnoreWater = true
 Params.FilterType = Enum.RaycastFilterType.Exclude
 Params:AddToFilter(GetPlayerCharacters())
 Params:AddToFilter(CollectionService:GetTagged("AIControlled"))
+local GetConfigs = require(script.Parent.Parent:WaitForChild("Configs"))
+local ActionCosts = GetConfigs("GetActionCosts", "NormalZombie")
 
 local function isInList(value, list)
 	for _,v in pairs(list) do
@@ -24,7 +27,8 @@ local function isInList(value, list)
 	return false
 end
 
-local function findClosestTarget(origin: Vector3, excludeList: {Model})
+local function findClosestTarget(origin: Vector3, excludeList: {Model}, Range: number)
+	Range = Range or math.huge
 	excludeList = excludeList or {}
 	local targets = GetPlayerCharacters(excludeList)
 	for _,v in ipairs(CollectionService:GetTagged("AIControlled")) do
@@ -41,7 +45,10 @@ local function findClosestTarget(origin: Vector3, excludeList: {Model})
 			dist = newDist
 		end
 	end
-	return closest, dist
+	if dist <= Range then
+		return closest, dist
+	end
+	return nil
 end
 
 local function hasLOS(pos1: Vector3, pos2: Vector3): boolean & RaycastResult
@@ -72,6 +79,7 @@ HumanoidAI.new = function(Character: Model)
 	self.Active = false
 	self.Frames = 60 -- how many frames per update
 	self.PersistentFrames = self.Frames
+	self.DashAmount = 0
 	self.CurrentFrame = 0
 	self.Aggression = {}
 	self.CurrentAggression = 20
@@ -123,7 +131,7 @@ HumanoidAI.new = function(Character: Model)
 					local searchState, excludeList = 0, {}
 					-- Search states: 0 = searching, 1 = found successfully, 2 = epsilon transition, 3 = no target
 					repeat
-						local closest, dist = findClosestTarget(selfRoot.Position, excludeList)
+						local closest, dist = findClosestTarget(selfRoot.Position, excludeList, self.StateMachine.AggroRange)
 						if closest ~= nil then
 							-- There is a valid next closest!
 							local targetRoot = closest:FindFirstChild("HumanoidRootPart")
@@ -153,7 +161,7 @@ HumanoidAI.new = function(Character: Model)
 											self.Frames = 6
 											self.CurrentFrame = 0
 											selfHum:MoveTo(targetRoot.Position)
-											return true -- continue here
+											return true
 										end
 										return false
 									end
@@ -175,77 +183,147 @@ HumanoidAI.new = function(Character: Model)
 					end
 				
 				elseif self.StateMachine.State == "Chasing" then
-					
-
-				end
-
-
-				if self.StateMachine.State == "Idle" then
-					-- Search for a target
-				    local closest, _ = findClosestTarget(self.StateMachine.Character.HumanoidRootPart.Position)
-				elseif self.StateMachine.State == "Chasing" then
-					local reset = false
 					if self.StateMachine.Target == nil then
-						-- The target might be despawned? Do a reset
-						reset = true
-					else
-						local targetRoot = self.StateMachine.Target:FindFirstChild("HumanoidRootPart")
-						local hum = self.StateMachine.Target:FindFirstChildOfClass("Humanoid")
-						if targetRoot and hum and hum.Health > 0 then
-							if (targetRoot.Position - self.StateMachine.Character.HumanoidRootPart.Position).magnitude <= 4.5 then
-								-- Close enough, enter close combat
-								self.StateMachine.State = "CloseCombat"
+						-- The target might have left the game! Reset immediately
+						self.StateMachine.State = "Idle"
+						if self.StateMachine.Path ~= nil then
+							pcall(function()
 								self.StateMachine.Path:Destroy()
-								self.StateMachine.Character:FindFirstChildOfClass("Humanoid"):MoveTo(self.StateMachine.Character.HumanoidRootPart.Position)
+							end)
+							self.StateMachine.Path = nil
+						end
+						selfHum:MoveTo(selfRoot.Position)
+						return
+					end
+					local reset = false
+					local targetRoot: BasePart = self.StateMachine.Target:FindFirstChild("HumanoidRootPart")
+					local targetHum = self.StateMachine.Target:FindFirstChildOfClass("Humanoid")
+					local closest, dist = findClosestTarget(selfRoot.Position, {}, self.StateMachine.AggroRange)
+					if closest ~= self.StateMachine.Target and closest ~= nil then
+						-- Target is no longer the closest! Select a new target
+						self.StateMachine.Target = closest
+						targetRoot = self.StateMachine.Target:FindFirstChild("HumanoidRootPart")
+						if self.StateMachine.Path ~= nil then
+							pcall(function()
+								self.StateMachine.Path:Destroy()
+							end)
+							self.StateMachine.Path = nil
+						end
+						self.Path = Pathfinder.CharacterToCharacter(self.StateMachine.Character, closest, true, {
+							WaypointSpacing = 100,
+							AgentCanClimb = true,
+							Costs = ActionCosts
+						})
+						if self.StateMachine.Path.Waypoints[self.StateMachine.Path.Next] ~= nil then
+							self.StateMachine.Path = Pathfinder.AttachWalker(selfHum, self.StateMachine.Path)
+							self.StateMachine.Path.Walker.EpsilonFunction = function()
+								if hasLOS(selfRoot.Position, targetRoot.Position) == true and math.abs(selfRoot.Position.Y - targetRoot.Position.Y) < 5 then
+									return true
+								end
+								return false
 							end
-						else
-							-- The target is probably dead, do a reset
+							selfHum:MoveTo(self.StateMachine.Path.Waypoints[self.StateMachine.Path.Next].Position)
+							if self.StateMachine.Path.Waypoints[self.StateMachine.Path.Next].Action == Enum.PathWaypointAction.Jump then
+								self.Humanoid.Jump = true
+							end
+							self.StateMachine.Path.Next += 1
+						elseif targetRoot ~= nil then
+							selfHum:MoveTo(targetRoot.Position)
+						end
+					elseif closest ~= nil then
+						-- Target is still the closest
+						Params.FilterDescendantsInstances = GetPlayerCharacters()
+						local AIArray = CollectionService:GetTagged("AIControlled")
+						if #AIArray > 0 then
+							Params:AddToFilter(AIArray)
+						end
+						Params:AddToFilter(self.StateMachine.Character)
+						if targetRoot == nil or targetHum == nil or targetHum.Health <= 0 or self.StateMachine.Path.Waypoints[self.StateMachine.Path.Next - 1] == nil then
+							-- Target is dead or invalid path
 							reset = true
+						elseif (targetRoot.Position - selfRoot.Position).Magnitude <= 3 then
+							-- Close enough, enter close combat!
+							self.StateMachine.State = "CloseCombat"
+							selfHum:MoveTo(selfRoot.Position)
+						elseif self.StateMachine.Path == nil or self.StateMachine.Path.Active == false then
+							-- Path is dead!
+							if hasLOS(selfRoot.Position, targetRoot.Position) == true and math.abs(selfRoot.Position.Y - targetRoot.Position.Y) < 5 then
+								-- Has LOS, enter dash
+								self.StateMachine.State = "Dash"
+								self.Frames = 6
+								selfHum:MoveTo(targetRoot.Position + (targetRoot.CFrame.LookVector * 4))
+							else
+								reset = true
+							end
+						end
+						-- Obstacle avoidance
+						local frontRay = workspace:Raycast(selfRoot.Position - Vector3.new(0, 1, 0), selfRoot.CFrame.LookVector * 2.5, Params)
+						if frontRay ~= nil and not frontRay.Instance:IsA("TrussPart") then
+							selfHum.Jump = true
 						end
 					end
-					if reset == true then
+
+					if reset ~= true and self.StateMachine.Path ~= nil then
+						if hasLOS(selfRoot.Position, targetRoot).Position == true and math.abs(selfRoot.Position.Y - targetRoot.Position.Y) < 5 then
+							-- Has LOS, enter dash
+							--game.ReplicatedStorage.ToDash.Value += 1
+							self.StateMachine.State = "Dash"
+							self.Frames = 6
+							selfHum:MoveTo(targetRoot.Position + (targetRoot.CFrame.LookVector * 4))
+						elseif self.Path.Walker == nil then
+							-- The path is dead!
+							self.StateMachine.Path = nil
+						else
+							self.StateMachine.Path.Walker:Update()
+						end
+					elseif reset == true then
 						self.StateMachine.State = "Idle"
-						self.CurrentAggression = 0
-						self.StateMachine.Path:Destroy()
-						self.StateMachine.Character:FindFirstChildOfClass("Humanoid"):MoveTo(self.StateMachine.Character.HumanoidRootPart.Position)
+						pcall(function()
+							self.StateMachine.Path:Destroy()
+						end)
+						self.StateMachine.Path = nil
+						selfHum:MoveTo(selfRoot.Position)
 					end
-				elseif self.StateMachine.State == "CloseCombat" then
+				
+				elseif self.StateMachine.State == "Dash" then
 					local reset = false
-					if self.StateMachine.Target == nil then
-						-- The target might be despawned? Do a reset
+					local targetRoot: BasePart = self.StateMachine.Target:FindFirstChild("HumanoidRootPart")
+					local targetHum = self.StateMachine.Target:FindFirstChildOfClass("Humanoid")
+					if targetRoot == nil or targetHum == nil or targetHum.Health <= 0 then
 						reset = true
 					else
-						local targetRoot = self.StateMachine.Target:FindFirstChild("HumanoidRootPart")
-						local hum = self.StateMachine.Target:FindFirstChildOfClass("Humanoid")
-						if targetRoot and hum and hum.Health > 0 then
-							if (targetRoot.Position - self.StateMachine.Character.HumanoidRootPart.Position).magnitude <= 4.5 then
-								-- Close enough, fight
-								if typeof(self.CurrentTween) == "Instance" and self.CurrentTween:IsA("Tween") then
-									self.CurrentTween:Cancel()
-									self.CurrentTween:Destroy()
+						if hasLOS(selfRoot.Position, targetRoot.Position) == true then
+							selfHum:MoveTo(targetRoot.Position + (targetRoot.CFrame.LookVector * 4))
+							self.DashAmount += 1
+							if self.DashAmount >= 10 then
+								self.DashAmount = 0
+								local frontRay = workspace:Raycast(selfRoot.Position - Vector3.new(0, 1, 0), selfRoot.CFrame.LookVector * 2.5, Params)
+								if frontRay ~= nil and not frontRay.Instance:IsA("TrussPart") then
+									selfHum.Jump = true
 								end
-								self.CurrentTween = TweenService:Create(self.StateMachine.Character.HumanoidRootPart, TweenInfo.new(), {CFrame = CFrame.lookAt(self.StateMachine.Character.HumanoidRootPart.Position, Vector3.new(targetRoot.Position.X, self.StateMachine.Character.HumanoidRootPart.Position.Y, targetRoot.Position.Z))})
-								self.CurrentTween:Play()
-								self.StateMachine.CombatAPI:LightAttack()
-							else
-								-- Target has fled! Chase
-								self.StateMachine.State = "Chasing"
-								self.StateMachine.Path = Pathfinder.CharacterToCharacter(self.StateMachine.Character, self.StateMachine.Target, true)
-								Pathfinder.AttachWalker(self.StateMachine.Character:FindFirstChildOfClass("Humanoid"), self.StateMachine.Path)
-								self.StateMachine.Character:FindFirstChildOfClass("Humanoid"):MoveTo(self.StateMachine.Path.Waypoints[self.StateMachine.Path.Next].Position)
+							end
+							if (targetRoot.Position - selfRoot.Position).magnitude <= 4.5 and math.abs(selfRoot.Position.Y - targetRoot.Position.Y) <= 3.8 then
+								self.StateMachine.State = "CloseCombat"
+								self.Frames = self.PersistentFrames
+								self.DashAmount = 0
+								selfHum:MoveTo(selfRoot.Position)
 							end
 						else
-							-- The target is probably dead, do a reset
 							reset = true
 						end
 					end
 					if reset == true then
 						self.StateMachine.State = "Idle"
-						self.CurrentAggression = 0
-						self.StateMachine.Path:Destroy()
-						self.StateMachine.Character:FindFirstChildOfClass("Humanoid"):MoveTo(self.StateMachine.Character.HumanoidRootPart.Position)
+						self.Frames = self.PersistentFrames
+						self.DashAmount = 0
+						selfHum:MoveTo(selfRoot.Position)
 					end
+				
+				elseif self.StateMachine.State == "CloseCombat" then
+					print("in close combat")
+
 				end
+
 			elseif self.StateMachine ~= nil and self.StateMachine.Character == nil then
 				-- The npc doesn't exist anymore, do clean up
 				self.StateMachine:Destroy()
