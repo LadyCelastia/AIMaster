@@ -64,6 +64,7 @@ Pathfinder.CharacterToPart = function(Char: Model, Part: BasePart, Chase: boolea
 end
 
 Pathfinder.CharacterToCharacter = function(Char: Model, Target: Model, Chase: boolean, Paras: {any}?)
+	--print("making new path")
 	local root = Char:FindFirstChild("HumanoidRootPart")
 	local targetRoot = Target:FindFirstChild("HumanoidRootPart")
 	if root ~= nil and targetRoot ~= nil then
@@ -73,6 +74,7 @@ Pathfinder.CharacterToCharacter = function(Char: Model, Target: Model, Chase: bo
 		end
 		return path
 	end
+	--print("no path!!!")
 end
 
 return Pathfinder

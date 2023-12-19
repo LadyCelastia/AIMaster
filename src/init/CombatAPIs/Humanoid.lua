@@ -119,25 +119,25 @@ end
 
 function HumanoidCombat:Block()
 	if self.Character ~= nil and self.Weapon ~= nil then
-		self.Weapon:Block()
+		self.Weapon:Block(self.Weapon)
 	end
 end
 
 function HumanoidCombat:Unblock()
 	if self.Character ~= nil and self.Weapon ~= nil then
-		self.Weapon:Unblock()
+		self.Weapon:Unblock(self.Weapon)
 	end
 end
 
 function HumanoidCombat:LightAttack()
 	if self.Character ~= nil and self.Weapon ~= nil then
-		self.Weapon:LightAttack()
+		self.Weapon:LightAttack(self.Weapon)
 	end
 end
 
 function HumanoidCombat:HeavyAttack()
 	if self.Character ~= nil and self.Weapon ~= nil then
-		self.Weapon:HeavyAttack()
+		self.Weapon:HeavyAttack(self.Weapon)
 	end
 end
 
