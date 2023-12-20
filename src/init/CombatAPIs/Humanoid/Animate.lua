@@ -1,5 +1,7 @@
 -- humanoidAnimatePlayEmote.lua
 
+repeat task.wait(.2)
+until script.Parent:IsA("Model")
 local Figure = script.Parent
 local Torso = Figure:WaitForChild("Torso")
 local RightShoulder = Torso:WaitForChild("Right Shoulder")
@@ -666,6 +668,7 @@ Sprinting:GetPropertyChangedSignal("Value"):Connect(function()
 end)
 
 ---- setup emote chat hook
+--[[
 game:GetService("Players").LocalPlayer.Chatted:Connect(function(msg)
 	local emote = ""
 	if msg == "/e dance" then
@@ -681,6 +684,7 @@ game:GetService("Players").LocalPlayer.Chatted:Connect(function(msg)
 	end
 
 end)
+--]]
 
 -- emote bindable hook
 script:WaitForChild("PlayEmote").OnInvoke = function(emote)
