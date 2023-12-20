@@ -9,6 +9,10 @@ local aiLibrary = require(script:WaitForChild("AILibrary"))
 local combatAPIs = script:WaitForChild("CombatAPIs")
 local combatAIs = script:WaitForChild("CombatAIs")
 
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local replicatedModules = replicatedStorage:WaitForChild("Modules")
+local weaponMaster = require(replicatedModules:WaitForChild("WeaponMaster"))
+
 local loadedCombatAPIs = {}
 local loadedCombatAIs = {}
 local existingStateMachines = {}
@@ -36,10 +40,9 @@ end
 
 local function loadCharacter(character : Model, noAnim : boolean)
 	local humanoid : Humanoid = character:WaitForChild("Humanoid")
-	local animator = Instance.new("Animator")
-	animator.Parent = humanoid
+	local animator = Instance.new("Animator", humanoid)
 
-	collectionService:AddTag(character, "AIControlled")
+	collectionService:AddTag(character, "NPCCharacter")
 
 	local cn; cn = humanoid.Running:Connect(function(speed)
 		if speed > 0 then
@@ -62,12 +65,11 @@ local function loadCharacter(character : Model, noAnim : boolean)
 	RealSpeed.Value = humanoid.WalkSpeed
 	RealSpeed.Parent = humanoid
 
-	--local Root : BasePart = character:WaitForChild("HumanoidRootPart")
+	local Root : BasePart = character:WaitForChild("HumanoidRootPart")
 
 	for _,v in ipairs(character:GetDescendants()) do
 		if v:IsA("Motor6D") and BlacklistCheck(v.Name) == true then
-			local BallSocketConstraint = Instance.new("BallSocketConstraint")
-			BallSocketConstraint.Parent = v.Parent
+			local BallSocketConstraint = Instance.new("BallSocketConstraint", v.Parent)
 			BallSocketConstraint.Name = "RagdollConstraint"
 			local Attachment0, Attachment1 = Instance.new("Attachment"), Instance.new("Attachment")
 			Attachment0.Parent, Attachment1.Parent = v.Part0, v.Part1
@@ -166,7 +168,7 @@ StateMachine.new = function()
 	self.Difficulty = 50 -- 1 to 100, determins how proficient the AI is at combat (100 is max)
 
 	table.insert(existingStateMachines, self)
-
+	--print("new state machine")
 	return self
 end
 
@@ -216,7 +218,16 @@ Module.MountAI = function(AIType, Char)
 	end
 end
 
+Module.MountWeapon = function(Tool, Char)
+	local newWeapon = weaponMaster.newFromLibrary(Char, Tool.Name)
+	newWeapon.Tool = Tool
+	newWeapon.Blade = Tool:FindFirstChild("Hitbox")
+	newWeapon.HitboxAttachment = Tool:FindFirstChildWhichIsA("Attachment", true)
+	return newWeapon
+end
+
 Module.buildAI = function(AIName, Char)
+	--print("building ai")
 	local newAI = StateMachine.new()
 	for i,v in pairs(aiLibrary) do
 		if i == AIName then
@@ -227,6 +238,7 @@ Module.buildAI = function(AIName, Char)
 			newAI["AggroRange"] = v["AggroRange"] or 50
 		end
 	end
+	--print("returning ai")
 	return newAI
 end
 

@@ -15,12 +15,14 @@ PathWrapper.new = function(start: Vector3, finish: Vector3, paras: {any}?)
 	self.Start = start
 	self.Finish = finish
 	self.Active = true
+	self.Destroyed = false
 	--self._ThisColor = BrickColor.Random()
 	self.Waypoints = {}
 	self:Compute()
 	if self.Path.Status == Enum.PathStatus.Success then
 		self.Waypoints = self.Path:GetWaypoints()
 	end
+	--print("returning path")
 	return self, self.Path.Status
 end
 
@@ -67,8 +69,10 @@ function PathWrapper:Compute()
 		--]]
 		self.Path:ComputeAsync(self.Start, self.Finish)
 		if self.Path.Status == Enum.PathStatus.NoPath or self.Path.Status == Enum.PathStatus.FailStartNotEmpty or self.Path.Status == Enum.PathStatus.FailFinishNotEmpty then
+			--print("path not success!! ", self.Path.Status)
 			self:Destroy()
 		else
+			--print("updating path")
 			self:Update()
 			self.Next = 2
 		end

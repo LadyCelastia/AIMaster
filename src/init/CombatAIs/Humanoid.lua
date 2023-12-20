@@ -262,7 +262,6 @@ HumanoidAI.new = function(Character: Model)
 							selfHum:MoveTo(targetRoot.Position)
 						end
 					elseif closest ~= nil then
-						--print("target still closest")
 						-- Target is still the closest
 						Params.FilterDescendantsInstances = GetPlayerCharacters()
 						local AIArray = CollectionService:GetTagged("AIControlled")
@@ -359,27 +358,8 @@ HumanoidAI.new = function(Character: Model)
 					end
 
 				elseif self.StateMachine.State == "CloseCombat" then
-					--print("in close combat")
-					local reset = false
-					local targetRoot: BasePart = self.StateMachine.Target:FindFirstChild("HumanoidRootPart")
-					local targetHum = self.StateMachine.Target:FindFirstChildOfClass("Humanoid")
-					local dist = (selfRoot.Position - targetRoot.Position).magnitude
-					
-					if targetRoot == nil or targetHum == nil or targetHum.Health <= 0 or dist > 4.5 then
-						--print(dist)
-						reset = true
-					else
-						--print("trying to attack")
-						local newTween = TweenService:Create(selfRoot, TweeningInfo, {CFrame = CFrame.new(selfRoot.Position, Vector3.new(targetRoot.Position.X, selfRoot.Position.Y, targetRoot.Position.Z))})
-						newTween:Play()
-						self.StateMachine.CombatAPI:LightAttack()
-					end
-					
-					if reset == true then
-						--print("going back to idle")
-						self.StateMachine.State = "Idle"
-						self.Frames = self.PersistentFrames
-					end
+					print("in close combat")
+
 				end
 
 			elseif self.StateMachine ~= nil and self.StateMachine.Character == nil then
